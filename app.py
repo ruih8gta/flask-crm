@@ -240,5 +240,51 @@ def count_quantity():
     result = str(int(result))+"個"
     return render_template("4-2_result_statistics.html",statistics_type=statistics_type,result=result)
 
+#4-4総売上算出
+@app.route("/total_sales",methods=["POST"])
+def total_sales():
+    statistics_type = "総売上"
+    joined_table = db.session.query(Purchase_detail.purchase_id,Item.price,Item.item_id,Purchase_detail.quantity).join(Item,Purchase_detail.item_id==Item.item_id).all()
+    total_sales = 0
+    for row in joined_table:
+        if row.quantity:
+            sale = row.price * row.quantity
+            total_sales += sale
+    result = str(total_sales) +"円"
+    return render_template("4-2_result_statistics.html",statistics_type=statistics_type,result=result)    
+
+#4-5.販売数量商品別ランキング
+@app.route("/ranking_items",methods=["POST"])
+def ranking_items():
+    statistics_type = "販売数量商品別ランキング"
+    purchase_details = Purchase_detail.query.all()
+    item_count_dict = {}
+    #{item_id_A:総数量,
+    # item_id_B:総数量,}
+    for purchase_detail in purchase_details:
+        item_id = purchase_detail.item_id
+        quantity = purchase_detail.quantity
+        if quantity:
+            if item_count_dict.get(item_id) is None:
+                item_count_dict[item_id] = quantity
+            else:
+                item_count_dict[item_id] = item_count_dict[item_id] + quantity
+
+    def func(x):
+        return x[1]
+    #items()→listの中にタプルでkeyとvalueが入っている
+    item_count_dict = sorted(item_count_dict.items(),key=lambda x:x[1],reverse=True)
+    # item_count_dict = sorted(item_count_dict.items(),key=func,reverse=True)
+    items = []
+    for index,item_tuple in enumerate(item_count_dict):
+        item = list(item_tuple)
+        item_name = Item.query.filter_by(item_id=item[0]).first().item_name
+        item.append(item_name)
+        item.append(str(index+1)+"位")
+        items.append(item)
+    
+    return render_template("4-3_result_ranking_items.html",statistics_type=statistics_type,items=items)
+
+
 if __name__ =="__main__":
     app.run(debug=True)
